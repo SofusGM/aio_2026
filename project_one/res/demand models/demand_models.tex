@@ -1,0 +1,32 @@
+\begin{table}[htbp]
+\centering
+\caption{Demand estimates}
+\label{tab:demand_models}
+\begin{tabular}{lcc}
+\toprule
+ & Simple logit & Nested logit \\
+\midrule
+log\_eurpr & 0.354 & -7.032 \\
+ & (0.274) & (0.604) \\
+cy & -0.000 & 0.001 \\
+ & (0.000) & (0.000) \\
+hp & -0.022 & -0.045 \\
+ & (0.003) & (0.008) \\
+we & 0.001 & 0.008 \\
+ & (0.000) & (0.001) \\
+le & 0.000 & 0.060 \\
+ & (0.003) & (0.007) \\
+li & -0.003 & -0.612 \\
+ & (0.027) & (0.061) \\
+sp & 0.003 & 0.136 \\
+ & (0.006) & (0.012) \\
+$\rho_1$ (cla) & & 0.950 \\
+$\rho_2$ (home) & & 0.589 \\
+\midrule
+type FE & $\checkmark$ & $\checkmark$ \\
+Price instrumented & Yes & Yes \\
+Observations & 5998 & 5998 \\
+\bottomrule
+\multicolumn{3}{p{0.75\linewidth}}{\footnotesize \textit{Note:} Robust standard errors in parentheses. Dependent variable is delta, market size = pop. Nested logit nests on home and cla; $\rho$ estimated by GMM with log\_xexr, we\_rival, n\_sub as instruments.} \\
+\end{tabular}
+\end{table}
