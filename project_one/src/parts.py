@@ -12,10 +12,10 @@ def market_size_function(data: DataFrame, type: str = 'pop'
 
     if type == 'pop':
         market_size = data['pop'] / 3
-
-    elif type == 'households': # replace this with some new type
+    elif type == 'hh': # Predicted number of households in each market each year
         market_size = data['households'] 
-
+    elif type == 'hh_adjust': # Predicted number of households in each market each year adjusted for the number of cars per household and replacement rate of cars
+        market_size = data['households'] / 2.5 # this number is taking from a paper, but may need to be adjustet
     else:
         raise ValueError(f"Unknown market size type: {type}")
 
