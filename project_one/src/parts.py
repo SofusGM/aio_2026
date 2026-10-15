@@ -13,8 +13,8 @@ def market_size_function(data: DataFrame, type: str = 'pop'
     if type == 'pop':
         market_size = data['pop'] / 3
 
-    elif type == 'sales': # replace this with some new type
-        market_size = None
+    elif type == 'households': # replace this with some new type
+        market_size = data['households'] 
 
     else:
         raise ValueError(f"Unknown market size type: {type}")
