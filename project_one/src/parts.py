@@ -13,9 +13,9 @@ def market_size_function(data: DataFrame, type: str = 'pop'
     if type == 'pop':
         market_size = data['pop'] / 3
     elif type == 'hh': # Predicted number of households in each market each year
-        market_size = data['households'] 
+        market_size = data['households_pred']
     elif type == 'hh_adjust': # Predicted number of households in each market each year adjusted for the number of cars per household and replacement rate of cars
-        market_size = data['households'] / 2.5 # this number is taking from a paper, but may need to be adjustet
+        market_size = data['households_pred'] / 2.5 # this number is taking from a paper, but may need to be adjustet
     else:
         raise ValueError(f"Unknown market size type: {type}")
 
@@ -74,16 +74,26 @@ def instruments_function(data: DataFrame, var_type: str, nest: str = 'home', sub
                          ):
     """Return one instrument (Series named var_type):
     'log_xexr' -> log real exchange rate, log(avdexr/avexr)
+    'log_avppr'-> log producer price index of the exporter country (cost shifter, NaN before ~1981 for some loc)
+    'log_tax'  -> log(1 + VAT rate); pr includes VAT, so it shifts log price one-for-one (varies by market-year only)
     'hausman'  -> avg. log eurpr of the same model in the other markets, same year (NaN if sold in one market)
     'we_rival' -> sum of weight of the other models in the same nest/subgroup
     'n_sub'    -> log number of models in the same nest/subgroup
     'n_nest'   -> log number of models in the same nest
+    'diff_<x>' -> differentiation IV (Gandhi & Houde): sum of squared differences in characteristic x
+                  to the other models in the same nest/subgroup, e.g. 'diff_hp', 'diff_we'
     """
 
     sub = data.groupby(['ma', 'ye', nest, subgroup])
 
     if var_type == 'log_xexr':
         z = np.log(data['xexr'])
+
+    elif var_type == 'log_avppr':
+        z = np.log(data['avppr'])
+
+    elif var_type == 'log_tax':
+        z = np.log(1 + data['tax'])
 
     elif var_type == 'hausman':
         lp = np.log(data['eurpr'])
@@ -98,6 +108,13 @@ def instruments_function(data: DataFrame, var_type: str, nest: str = 'home', sub
 
     elif var_type == 'n_nest':
         z = np.log(data.groupby(['ma', 'ye', nest])['qu'].transform('size'))
+
+    elif var_type.startswith('diff_'):
+        x = data[var_type[len('diff_'):]]
+        keys = [data['ma'], data['ye'], data[nest], data[subgroup]]
+        # sum_k (x_k - x_j)^2 = n x_j^2 - 2 x_j sum_k x_k + sum_k x_k^2 (the k = j term is zero)
+        z = (x.groupby(keys).transform('count') * x**2 - 2 * x * x.groupby(keys).transform('sum')
+             + (x**2).groupby(keys).transform('sum'))
 
     else:
         raise ValueError(f"Unknown instrument type: {var_type}")

@@ -8,7 +8,6 @@ consumer demand for cars.
 from linearmodels.iv import IV2SLS
 import matplotlib.pyplot as plt
 import numpy as np
-from scipy.optimize import minimize, minimize_scalar
 import pandas as pd 
 from pathlib import Path
 import seaborn as sns 
@@ -29,11 +28,11 @@ PRICE_VAR = 'eurpr'     # choose between 'pr', price-to-income `princ`, or price
 LOG_PRICE = True        # choose between True or False
 
 # 2. Controls and fixed effects
-CONTROLS = 'cy + hp + we + le + li + sp'
-FE = 'co'
+CONTROLS = 'hp + we + le + li + sp + he + wi'
+FE = 'brd + ma_ye'    # market-year fixed effects (column built from ma and ye after reading data)
 
 # 3. Instrument(s)
-INSTRUMENTS = 'log_xexr + we_rival + n_sub'   # choose from 'log_xexr', 'hausman', 'we_rival', 'n_sub', 'n_nest' (see parts.instruments_function)
+INSTRUMENTS = 'log_xexr + we_rival + n_sub'   # choose from 'log_xexr', 'log_avppr', 'log_tax', 'hausman', 'we_rival', 'n_sub', 'n_nest', 'diff_<x>' (see parts.instruments_function)
 INSTRUMENTS_ON = True  # choose between True or False
 
 # 4. Substitution patterns (nests)
@@ -46,6 +45,8 @@ cars = pd.read_csv(DATA / 'cars.csv') # this reads the *balanced* dataset (i.e. 
 lbl_vars = pd.read_csv(DATA / 'labels_variables.csv', index_col=0) # labels on variables (same as in project1.pdf)
 lbl_vals = pd.read_stata(DATA / 'cars.dta', iterator=True).value_labels() # the values that variables take (not relevant for all)
 
+cars['ma_ye'] = cars['ma'].astype(str) + '_' + cars['ye'].astype(str) # market-year identifier for fixed effects
+
 print(cars.shape)
 
 # %%  Estimate market size, shares and outside share
@@ -56,15 +57,20 @@ print(cars.columns)
 
 # %%  Price variable used in mean utility
 
+PRICE = f'log_{PRICE_VAR}' if LOG_PRICE else PRICE_VAR   # price regressor
 if LOG_PRICE:
-    cars['log_'+PRICE_VAR] = np.log(cars[PRICE_VAR]) 
+    cars[PRICE] = np.log(cars[PRICE_VAR])
 
 # %% Construct right hand side in regression
 
+FE_TERMS = ' + '.join(f'C({f.strip()})' for f in FE.split('+'))  # one set of dummies per fixed effect
+
 if INSTRUMENTS_ON:
-    rhs = f'1 + {CONTROLS} + C({FE}) + [log_{PRICE_VAR} ~ {INSTRUMENTS}]'
+    rhs = f'1 + {CONTROLS} + {FE_TERMS} + [{PRICE} ~ {INSTRUMENTS}]'
+    rhs_nested = f'1 + {CONTROLS} + {FE_TERMS} + [{PRICE} + ln_s_j_hg + ln_s_h_g ~ {INSTRUMENTS}]'
 else:
-    rhs = f'1 + log_{PRICE_VAR} + {CONTROLS} + C({FE})'
+    rhs = f'1 + {PRICE} + {CONTROLS} + {FE_TERMS}'
+    rhs_nested = f'1 + {PRICE} + {CONTROLS} + {FE_TERMS} + [ln_s_j_hg + ln_s_h_g ~ {INSTRUMENTS}]'
     
 # %% Actually compute the instruments
 
@@ -77,37 +83,27 @@ for t in INSTR:
 # estimation sample: rows with all controls and instruments observed
 sample = cars[INSTR + [c.strip() for c in CONTROLS.split('+')]].notna().all(axis=1).values
 
-# X = regressors, Z = exogenous regressors + instruments (delta is a placeholder to parse the formula)
-mod = IV2SLS.from_formula(f'delta ~ {rhs}', data=cars[sample].assign(delta=0.0))
-X = np.column_stack([mod.exog.ndarray, mod.endog.ndarray])
-Z = np.column_stack([mod.exog.ndarray, cars.loc[sample, INSTR].values])
-W = np.linalg.inv(Z.T @ Z)
+# ln(s_j/s_0) = x_j beta - alpha p_j + rho_1 ln(s_{j|hg}) + rho_2 ln(s_{h|g}) + xi_j is linear, so 2SLS gives
+# beta, alpha and rho together with SEs that account for estimating rho (shares from the full data)
+cars['s_g'] = cars.groupby(['ma', 'ye', NEST])['s'].transform('sum')
+cars['s_hg'] = cars.groupby(['ma', 'ye', NEST, SUBGROUP])['s'].transform('sum')
+cars['ln_s_j_hg'] = np.log(cars['s'] / cars['s_hg'])   # product share within its subgroup -> rho_1
+cars['ln_s_h_g'] = np.log(cars['s_hg'] / cars['s_g'])  # subgroup share within its nest -> rho_2
+cars['delta'] = np.log(cars['s']) - np.log(cars['s0'])
 
-res = minimize(parts.Q_nested, x0=[0.5, 0.3], args=(cars, X, Z, W, NEST, SUBGROUP, sample),
-               method='L-BFGS-B', bounds=[(0.0, 0.95)] * 2)
-print(res)
-rho_hat = res.x
-
-
-# %% Linear parameters at rho_hat
-cars['delta'] = parts.invert_demand_nest_2levels(cars, rho_hat, NEST, SUBGROUP)
-fit_2levels = IV2SLS.from_formula(f'delta ~ {rhs}', data=cars.loc[sample]).fit()
-
-theta1 = fit_2levels.params[[k for k in fit_2levels.params.index if not k.startswith('C(')]]
-est_2 = pd.concat([theta1, pd.Series(rho_hat, index=['rho_1', 'rho_2'])]).to_frame('Estimate')
-print(est_2)
+fit_2levels = IV2SLS.from_formula(f'delta ~ {rhs_nested}', data=cars.loc[sample]).fit()
+rho_hat = fit_2levels.params[['ln_s_j_hg', 'ln_s_h_g']].values
+print(fit_2levels.params[[k for k in fit_2levels.params.index if not k.startswith('C(')]])
 
 # %% Compute simple logit with the same sample
 
-cars['delta'] = np.log(cars['s']) - np.log(cars['s0'])
 fit_simple = IV2SLS.from_formula(f'delta ~ {rhs}', data=cars.loc[sample]).fit()
-fit_2levels.params
 
 # %% Save the two models side by side in a LaTeX table
 
 esc = lambda v: v.replace('_', r'\_')  # variable names as they are, escaped for LaTeX
 
-rows = [f'log_{PRICE_VAR}' if LOG_PRICE else PRICE_VAR] + [c.strip() for c in CONTROLS.split('+')]
+rows = [PRICE] + [c.strip() for c in CONTROLS.split('+')]
 fits = [fit_simple, fit_2levels]
 
 tex = [r'\begin{table}[htbp]', r'\centering', r'\caption{Demand estimates}', r'\label{tab:demand_models}',
@@ -116,39 +112,39 @@ for k in rows:
     tex.append(f'{esc(k)} & ' + ' & '.join(f'{f.params[k]:.3f}' for f in fits) + r' \\')
     tex.append(' & ' + ' & '.join(f'({f.std_errors[k]:.3f})' for f in fits) + r' \\')
 tex += [rf'$\rho_1$ ({SUBGROUP}) & & {rho_hat[0]:.3f} \\',
+        rf' & & ({fit_2levels.std_errors["ln_s_j_hg"]:.3f}) \\',
         rf'$\rho_2$ ({NEST}) & & {rho_hat[1]:.3f} \\',
+        rf' & & ({fit_2levels.std_errors["ln_s_h_g"]:.3f}) \\',
         r'\midrule',
-        rf'{FE} FE & $\checkmark$ & $\checkmark$ \\',
+        rf'{esc(FE)} FE & $\checkmark$ & $\checkmark$ \\',
         rf'Price instrumented & {"Yes" if INSTRUMENTS_ON else "No"} & {"Yes" if INSTRUMENTS_ON else "No"} \\',
         rf'Observations & {fit_simple.nobs} & {fit_2levels.nobs} \\',
         r'\bottomrule',
         r'\multicolumn{3}{p{0.75\linewidth}}{\footnotesize \textit{Note:} Robust standard errors in parentheses. '
-        rf'Dependent variable is delta, market size = {MARKET_SIZE}. '
-        rf'Nested logit nests on {NEST} and {SUBGROUP}; $\rho$ estimated by GMM with '
+        rf'Dependent variable is $\ln(s_j/s_0)$, market size = {esc(MARKET_SIZE)}. '
+        rf'Nested logit nests on {NEST} and {SUBGROUP}; $\rho$ estimated by 2SLS with '
         + ', '.join(esc(z) for z in INSTR) + r' as instruments.} \\',
         r'\end{tabular}', r'\end{table}']
 
-(RES / 'demand_models.tex').write_text('\n'.join(tex) + '\n')
+(RES / 'demand_models_.tex').write_text('\n'.join(tex) + '\n')
 
 
 # %% Calculate own- and cross-price elasticity matrices for the simple and the 2-level nested logit
 
-alpha = - fit_simple.params[f'log_{PRICE_VAR}']
-alpha_nested = - fit_2levels.params[f'log_{PRICE_VAR}']
-
-cars['s_g'] = cars.groupby(['ma', 'ye', NEST])['s'].transform('sum')
-cars['s_hg'] = cars.groupby(['ma', 'ye', NEST, SUBGROUP])['s'].transform('sum')
+alpha = - fit_simple.params[PRICE]
+alpha_nested = - fit_2levels.params[PRICE]
 
 # every pair (j, k) sold in the same market (ma, ye); s, s_g and s_hg belong to k
 cols = ['ma', 'ye', 'co', NEST, SUBGROUP]
-pairs = cars[cols].merge(cars[cols + ['s', 's_g', 's_hg']], on=['ma', 'ye'], suffixes=('_j', '_k'))
+pairs = cars[cols].merge(cars[cols + ['s', 's_g', 's_hg', PRICE_VAR]], on=['ma', 'ye'], suffixes=('_j', '_k'))
 
 def elasticity(pairs, alpha, rho):
     r1, r2 = 1 / (1 - rho[0]), 1 / (1 - rho[1])
     own = pairs['co_j'] == pairs['co_k']
     same_g = pairs[f'{NEST}_j'] == pairs[f'{NEST}_k']
     same_hg = same_g & (pairs[f'{SUBGROUP}_j'] == pairs[f'{SUBGROUP}_k'])
-    return -alpha * (r1 * own - (r1 - r2) * same_hg * pairs['s'] / pairs['s_hg']
+    dp = 1 if LOG_PRICE else pairs[PRICE_VAR]  # d delta_k / d log p_k = -alpha (log price) or -alpha * p_k (price in levels)
+    return -alpha * dp * (r1 * own - (r1 - r2) * same_hg * pairs['s'] / pairs['s_hg']
                      - (r2 - 1) * same_g * pairs['s'] / pairs['s_g'] - pairs['s'])
 
 pairs['simple'] = elasticity(pairs, alpha, (0, 0))
@@ -182,7 +178,7 @@ for row, country in zip(axs, COUNTRIES):
                  .reindex(index=top.index, columns=top.index))
         elast.index, elast.columns = top['type'], top['type']
         ax.set_facecolor('black')
-        sns.heatmap(elast, annot=True, fmt='.1%', annot_kws={'size': 6}, ax=ax, **scale[model])
+        sns.heatmap(elast, annot=True, fmt='.2f', annot_kws={'size': 6}, ax=ax, **scale[model])
         ax.set_title(f'{title}: {country}'); ax.set_xlabel('Good k (has price change)'); ax.set_ylabel('Good j (response)')
 fig.tight_layout()
 fig.savefig(RES / 'price_elasticities_top_models.pdf', bbox_inches='tight')
