@@ -99,7 +99,7 @@ sns.scatterplot(
     y="households",
     hue="ma",
     palette=palette,
-    s=60,
+    s=80,
     ax=ax
 )
 
@@ -116,7 +116,7 @@ for market in markets:
 ax.set(xlim=(1970, 2000), xlabel="Year", ylabel="Households (millions)")
 ax.set_xticks(range(1970, 2001, 5))
 ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x / 1_000_000:g}"))
-ax.legend(title="Market", frameon=False)
+ax.legend(title="Country", frameon=False)
 fig.tight_layout()
 
 # Save to project_one/res/market size, based on this script's location
