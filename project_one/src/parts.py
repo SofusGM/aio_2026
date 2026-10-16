@@ -3,6 +3,7 @@
 
 from pandas import DataFrame
 import numpy as np
+from scipy import stats
 from linearmodels.iv import IV2SLS
 
 
@@ -70,53 +71,79 @@ def Q_nested(theta2, data: DataFrame, X, Z, W, nest: str, subgroup: str, sample
     return g @ W @ g
 
 
-def instruments_function(data: DataFrame, var_type: str, nest: str = 'home', subgroup: str = 'cla'
+def instruments_function(data: DataFrame, name: str, segment: str = 'cla', subgroup: str = 'home'
                          ):
-    """Return one instrument (Series named var_type):
-    'log_xexr' -> log real exchange rate, log(avdexr/avexr)
-    'log_avppr'-> log producer price index of the exporter country (cost shifter, NaN before ~1981 for some loc)
-    'log_tax'  -> log(1 + VAT rate); pr includes VAT, so it shifts log price one-for-one (varies by market-year only)
-    'hausman'  -> avg. log eurpr of the same model in the other markets, same year (NaN if sold in one market)
-    'we_rival' -> sum of weight of the other models in the same nest/subgroup
-    'n_sub'    -> log number of models in the same nest/subgroup
-    'n_nest'   -> log number of models in the same nest
-    'diff_<x>' -> differentiation IV (Gandhi & Houde): sum of squared differences in characteristic x
-                  to the other models in the same nest/subgroup, e.g. 'diff_hp', 'diff_we'
+    """Return one instrument (Series named `name`). All groupings are within market-year (ma, ye).
+    Cost shifters (move the price):
+    'log_exchange_rate'       -> log(xexr) = log(avdexr/avexr), destination currency per exporter currency
+    'log_producer_prices'     -> log(avppr), producer price index of the exporter country (NaN 1970-80 for some loc)
+    'log_producer_prices_sdr' -> log(avppr/avexr), exporter producer prices in common currency (SDR)
+    Competition instruments (move the within-segment share):
+    'sum_weight_subgroup'     -> sum of weight (we) of the other models in the same segment x subgroup
+    'log_count_subgroup'      -> log number of models in the same segment x subgroup (incl. j)
+    'log_count_segment'       -> log number of models in the same segment (incl. j)
+    'distance_segment_<x>'    -> Gandhi-Houde IV as in PS4: mean |x_j - x_k| over the other models in j's segment,
+                                 one characteristic x per instrument; 0 if alone in the segment (n = max(len - 1, 1))
     """
+    by_segment = [data['ma'], data['ye'], data[segment]]
+    by_subgroup = by_segment + [data[subgroup]]
 
-    sub = data.groupby(['ma', 'ye', nest, subgroup])
-
-    if var_type == 'log_xexr':
+    if name == 'log_exchange_rate':
         z = np.log(data['xexr'])
 
-    elif var_type == 'log_avppr':
+    elif name == 'log_producer_prices':
         z = np.log(data['avppr'])
 
-    elif var_type == 'log_tax':
-        z = np.log(1 + data['tax'])
+    elif name == 'log_producer_prices_sdr':
+        z = np.log(data['avppr'] / data['avexr'])
 
-    elif var_type == 'hausman':
-        lp = np.log(data['eurpr'])
-        g = lp.groupby([data['co'], data['ye']])
-        z = (g.transform('sum') - lp) / (g.transform('size') - 1)
+    elif name == 'sum_weight_subgroup':
+        z = data['we'].groupby(by_subgroup).transform('sum') - data['we']
 
-    elif var_type == 'we_rival':
-        z = sub['we'].transform('sum') - data['we']
+    elif name == 'log_count_subgroup':
+        z = np.log(data['qu'].groupby(by_subgroup).transform('size'))
 
-    elif var_type == 'n_sub':
-        z = np.log(sub['qu'].transform('size'))
+    elif name == 'log_count_segment':
+        z = np.log(data['qu'].groupby(by_segment).transform('size'))
 
-    elif var_type == 'n_nest':
-        z = np.log(data.groupby(['ma', 'ye', nest])['qu'].transform('size'))
-
-    elif var_type.startswith('diff_'):
-        x = data[var_type[len('diff_'):]]
-        keys = [data['ma'], data['ye'], data[nest], data[subgroup]]
-        # sum_k (x_k - x_j)^2 = n x_j^2 - 2 x_j sum_k x_k + sum_k x_k^2 (the k = j term is zero)
-        z = (x.groupby(keys).transform('count') * x**2 - 2 * x * x.groupby(keys).transform('sum')
-             + (x**2).groupby(keys).transform('sum'))
+    elif name.startswith('distance_segment_'):
+        x = data[name[len('distance_segment_'):]]
+        # sum_k |x_j - x_k| over the segment (the k = j term is zero), divided by the number of other models
+        z = x.groupby(by_segment).transform(
+            lambda v: np.abs(v.values[:, None] - v.values[None, :]).sum(axis=1) / max(len(v) - 1, 1))
 
     else:
-        raise ValueError(f"Unknown instrument type: {var_type}")
+        raise ValueError(f"Unknown instrument: {name}")
 
-    return z.rename(var_type)
+    return z.rename(name)
+
+
+def first_stage_F(X, Z, kw):
+    """First-stage F per endogenous regressor, with the exogenous regressors already partialled out of X and Z.
+    One endogenous regressor: robust F (robust Wald / # instruments).
+    Several: Sanderson-Windmeijer conditional F (non-robust) for each. kw = # partialled-out exogenous regressors.
+    """
+    PZ = lambda A: Z @ np.linalg.lstsq(Z, A, rcond=None)[0]
+    if X.shape[1] == 1:
+        ZZi = np.linalg.inv(Z.T @ Z)
+        g = ZZi @ Z.T @ X[:, 0]
+        u = X[:, 0] - Z @ g
+        return [g @ np.linalg.solve(ZZi @ ((Z * u[:, None]).T @ (Z * u[:, None])) @ ZZi, g) / Z.shape[1]]
+    out = []
+    for j in range(X.shape[1]):
+        Xo = np.delete(X, j, axis=1)
+        e = X[:, j] - Xo @ np.linalg.lstsq(PZ(Xo), X[:, j], rcond=None)[0]
+        pe = PZ(e)
+        out.append((pe @ pe / (Z.shape[1] - X.shape[1] + 1)) / ((e - pe) @ (e - pe) / (len(e) - Z.shape[1] - kw)))
+    return out
+
+
+def overid_pval(y, X, Z, e):
+    """Robust two-step GMM (Hansen J) p-value of the overidentifying restrictions; NaN if just identified.
+    y, X, Z with the exogenous regressors partialled out; e = 2SLS residuals.
+    """
+    if Z.shape[1] == X.shape[1]:
+        return np.nan
+    Si = np.linalg.inv((Z * e[:, None]).T @ (Z * e[:, None]))
+    g = Z.T @ (y - X @ np.linalg.solve(X.T @ Z @ Si @ Z.T @ X, X.T @ Z @ Si @ Z.T @ y))
+    return stats.chi2.sf(g @ Si @ g, Z.shape[1] - X.shape[1])

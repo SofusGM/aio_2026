@@ -4,29 +4,27 @@
 \label{tab:demand_models}
 \begin{tabular}{lcc}
 \toprule
- & Simple logit & Nested logit \\
+ & Simple logit & Extended logit (nested by segment) \\
 \midrule
-log\_eurpr & 0.122 & -5.443 \\
- & (0.253) & (0.468) \\
-cy & -0.000 & 0.001 \\
- & (0.000) & (0.000) \\
-hp & -0.023 & -0.039 \\
- & (0.003) & (0.006) \\
-we & 0.001 & 0.006 \\
- & (0.000) & (0.001) \\
-le & 0.002 & 0.050 \\
- & (0.003) & (0.006) \\
-li & -0.030 & -0.527 \\
- & (0.027) & (0.052) \\
-sp & 0.008 & 0.110 \\
- & (0.005) & (0.010) \\
-$\rho_1$ (cla) & & 0.772 \\
-$\rho_2$ (home) & & 0.409 \\
+Log price & -2.230 & -5.940 \\
+ & (1.721) & (0.933) \\
+Domestic car & 1.245 & 1.178 \\
+ & (0.028) & (0.053) \\
+Horsepower/weight & 0.035 & 0.320 \\
+ & (0.130) & (0.075) \\
+Size (m$^2$) & 0.390 & 1.132 \\
+ & (0.356) & (0.186) \\
+Fuel consumption & -0.004 & 0.081 \\
+ & (0.042) & (0.025) \\
+$\rho$ (segment) &  & 0.093 \\
+ &  & (0.045) \\
 \midrule
-co FE & $\checkmark$ & $\checkmark$ \\
-Price instrumented & Yes & Yes \\
-Observations & 5998 & 5998 \\
+Market-year FE & $\checkmark$ & $\checkmark$ \\
+Brand FE & $\checkmark$ & $\checkmark$ \\
+First-stage F (price / within-segment share) & 16.3 & 22.8 / 38.2 \\
+Hansen J p-value & -- & 0.055 \\
+Observations & 6000 & 6000 \\
 \bottomrule
-\multicolumn{3}{p{0.75\linewidth}}{\footnotesize \textit{Note:} Robust standard errors in parentheses. Dependent variable is delta, market size = pop. Nested logit nests on home and cla; $\rho$ estimated by GMM with log\_xexr, we\_rival, n\_sub as instruments.} \\
+\multicolumn{3}{p{0.9\linewidth}}{\footnotesize \textit{Note:} Robust standard errors in parentheses. Dependent variable is $\ln(s_j/s_0)$, market size = hh. The extended logit is a nested logit with the segment (cla) as nest. First-stage F: robust F for the simple logit, Sanderson--Windmeijer F for the extended logit. Instruments: simple logit log\_exchange\_rate; extended logit log\_exchange\_rate, log\_count\_segment, distance\_segment\_hpwt, distance\_segment\_size.} \\
 \end{tabular}
 \end{table}

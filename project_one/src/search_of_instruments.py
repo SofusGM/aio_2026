@@ -72,9 +72,9 @@ sub = cars.groupby(['ma', 'ye', NEST, SUBGROUP])
 blp = pd.DataFrame({'hp_rival_frm': f['hp'].transform('sum') - cars['hp'],
                     'we_rival_frm': f['we'].transform('sum') - cars['we'],
                     'hp_rival_home_cla': sub['hp'].transform('sum') - cars['hp'],
-                    'we_rival_home_cla': parts.instruments_function(cars, 'we_rival', NEST, SUBGROUP),
+                    'we_rival_home_cla': parts.instruments_function(cars, 'sum_weight_subgroup', NEST, SUBGROUP),
                     'ln_n_frm': np.log(f['qu'].transform('size')),
-                    'ln_n_home_cla': parts.instruments_function(cars, 'n_sub', NEST, SUBGROUP)})
+                    'ln_n_home_cla': parts.instruments_function(cars, 'log_count_subgroup', NEST, SUBGROUP)})
 cars = pd.concat([cars, blp], axis=1)
 
 LABELS = {**lbl_vars.to_dict(),
