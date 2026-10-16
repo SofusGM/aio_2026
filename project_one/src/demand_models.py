@@ -130,51 +130,63 @@ tex += [rf'$\rho_1$ ({SUBGROUP}) & & {rho_hat[0]:.3f} \\',
 
 (RES / 'demand_models.tex').write_text('\n'.join(tex) + '\n')
 
-# %% Calculate own- and cross-price elasticity matrix
 
-# elast_logit = pd.DataFrame(np.nan, index=range(1,J+1), columns=range(1,J+1))
-# alpha = -res_logit.params[f'log_{PRICE_VAR}']
-# for j in range(1, J+1): # response category
-#     for k in range(1, J+1): # category with price change
-#         s_k = cars.xs(k, level='j')['s'] # share of category k: (N,) array
-#         if (j == k):
-#             elast_ijk = -alpha * (1 - s_k) # own-price
-#         else:
-#             elast_ijk = alpha * s_k # cross-price
+# %% Calculate own- and cross-price elasticity matrices for the simple and the 2-level nested logit
 
-#         elast_logit.loc[j,k] = elast_ijk.mean() # average over observations
+alpha = - fit_simple.params[f'log_{PRICE_VAR}']
+alpha_nested = - fit_2levels.params[f'log_{PRICE_VAR}']
 
-# # prettify
-# elast_logit.index = elast_logit.index.map(rename_num2name)
-# elast_logit.columns = elast_logit.columns.map(rename_num2name)
-# sns.heatmap(elast_logit, cmap='coolwarm', annot=True, fmt=".1%",  annot_kws={"size": 6});
-# plt.xlabel('Good k (has price change)'); plt.ylabel('Good j (response)');
+cars['s_g'] = cars.groupby(['ma', 'ye', NEST])['s'].transform('sum')
+cars['s_hg'] = cars.groupby(['ma', 'ye', NEST, SUBGROUP])['s'].transform('sum')
+
+# every pair (j, k) sold in the same market (ma, ye); s, s_g and s_hg belong to k
+cols = ['ma', 'ye', 'co', NEST, SUBGROUP]
+pairs = cars[cols].merge(cars[cols + ['s', 's_g', 's_hg']], on=['ma', 'ye'], suffixes=('_j', '_k'))
+
+def elasticity(pairs, alpha, rho):
+    r1, r2 = 1 / (1 - rho[0]), 1 / (1 - rho[1])
+    own = pairs['co_j'] == pairs['co_k']
+    same_g = pairs[f'{NEST}_j'] == pairs[f'{NEST}_k']
+    same_hg = same_g & (pairs[f'{SUBGROUP}_j'] == pairs[f'{SUBGROUP}_k'])
+    return -alpha * (r1 * own - (r1 - r2) * same_hg * pairs['s'] / pairs['s_hg']
+                     - (r2 - 1) * same_g * pairs['s'] / pairs['s_g'] - pairs['s'])
+
+pairs['simple'] = elasticity(pairs, alpha, (0, 0))
+pairs['nested'] = elasticity(pairs, alpha_nested, rho_hat) # ONLY WORKS FOR 2-LEVEL NESTED
+MODELS = {'simple': 'Simple logit', 'nested': '2-level nested logit'}
+scale = {model: dict(cmap='coolwarm', center=0, vmin=pairs[model].min(), vmax=pairs[model].max()) for model in MODELS} # own scale per model
+
+# %% Full matrix: all models, averaged over the markets (ma, ye) where both j and k are sold (never together = black)
+
+fig, axs = plt.subplots(1, 2, figsize=(40, 18))
+for ax, (model, title) in zip(axs, MODELS.items()):
+    elast = pairs.pivot_table(index='co_j', columns='co_k', values=model, aggfunc='mean')
+    ax.set_facecolor('black') # NaN cells are left undrawn, so the background shows
+    sns.heatmap(elast, ax=ax, **scale[model])
+    ax.set_title(title); ax.set_xlabel('Good k (has price change)'); ax.set_ylabel('Good j (response)')
+fig.savefig(RES / 'price_elasticities_all_models.pdf', bbox_inches='tight')
+
+# %% Comparison: top N_MODELS models by sales over YEARS in each country, sorted by class
+
+N_MODELS, YEARS, COUNTRIES = 10, range(95, 100), ['Germany', 'France']
+ma_code = {name: code for code, name in lbl_vals['market'].items()}
+
+fig, axs = plt.subplots(len(COUNTRIES), 2, figsize=(16, 14))
+for row, country in zip(axs, COUNTRIES):
+    m = cars[(cars['ma'] == ma_code[country]) & cars['ye'].isin(YEARS)]
+    top = (m.groupby('co').agg(qu=('qu', 'sum'), cla=('cla', 'first'), type=('type', 'last'))
+            .nlargest(N_MODELS, 'qu').sort_values('cla'))
+    p = pairs[(pairs['ma'] == ma_code[country]) & pairs['ye'].isin(YEARS)]
+    for ax, (model, title) in zip(row, MODELS.items()):
+        elast = (p.pivot_table(index='co_j', columns='co_k', values=model, aggfunc='mean')
+                 .reindex(index=top.index, columns=top.index))
+        elast.index, elast.columns = top['type'], top['type']
+        ax.set_facecolor('black')
+        sns.heatmap(elast, annot=True, fmt='.1%', annot_kws={'size': 6}, ax=ax, **scale[model])
+        ax.set_title(f'{title}: {country}'); ax.set_xlabel('Good k (has price change)'); ax.set_ylabel('Good j (response)')
+fig.tight_layout()
+fig.savefig(RES / 'price_elasticities_top_models.pdf', bbox_inches='tight')
+
+# %% Calculate diversion ratios
 
 
-
-
-
-# elast_simple = pd.DataFrame(results_ols1.params['p']*np.eye(J), index=labels, columns=labels)
-
-# price_coefs = results_ols2.params[[f'C(j)[{j}]:p' for j in range(1, J+1)    ]]
-# elast_2levels = pd.DataFrame(np.diag(price_coefs), index=labels, columns=labels)
-
-# elast_ols3 = pd.DataFrame(tab_ols3.iloc[:, 1:].values, index=labels, columns=labels)
-
-
-
-
-# Path('img').mkdir(exist_ok=True) # figures are written next to this notebook
-# fig,axs = plt.subplots(3, 2, figsize=(8,10))
-
-# for ax, elast, title in zip(axs.flatten(),
-#                           [elast_ols1, elast_ols2],
-#                           ['OLS 1', 'OLS 2', 'OLS 3', 'Logit', 'AIDS']):
-#     # reset index and columns from names to integers
-#     elast = elast.reset_index(drop=True).rename(columns={c: i for i,c in enumerate(elast.columns)})
-#     sns.heatmap(elast, cmap='coolwarm', annot=True, fmt=".1%", annot_kws={"size": 5}, ax=ax);
-#     ax.set_title(title);
-# # remove axs[2,1
-# axs[2,1].axis('off')
-# plt.tight_layout();
-# plt.savefig('demand models/elasticities_demand_models.pdf', bbox_inches='tight')
