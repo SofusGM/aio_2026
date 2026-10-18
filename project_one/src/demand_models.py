@@ -21,7 +21,7 @@ RES.mkdir(parents=True, exist_ok=True)
 # BASELINE DECISIONS
 
 # 0. Market size
-MARKET_SIZE = 'hh'
+MARKET_SIZE = 'hh_adjust'
 
 # 1. Price variable
 PRICE_VAR, LOG_PRICE = 'eurpr', True   # price in common currency, in logs
@@ -37,7 +37,7 @@ SUBGROUP = 'home'    # only used to build subgroup instruments, not part of the 
 # 4. Instruments (see parts.instruments_function)
 INSTRUMENTS_SIMPLE   = 'log_exchange_rate'
 INSTRUMENTS_EXTENDED = 'log_exchange_rate + log_count_segment + distance_segment_hpwt + distance_segment_size'
-
+INSTRUMENTS_SIMPLE_ROBUST = 'log_exchange_rate + log_count_segment + distance_segment_hpwt + distance_segment_size'
 # %% Read in data
 
 cars = pd.read_csv(DATA / 'cars.csv') # this reads the *balanced* dataset (i.e. J = 40 products per market always)
@@ -70,7 +70,8 @@ cars['log_share_ratio'] = np.log(cars['s']) - np.log(cars['s0'])
 
 split = lambda terms: [t.strip() for t in terms.split('+')]
 CTRL, FE_COLS = split(CONTROLS), split(FE)
-INSTR = {'simple': split(INSTRUMENTS_SIMPLE), 'extended': split(INSTRUMENTS_EXTENDED)}
+INSTR = {'simple': split(INSTRUMENTS_SIMPLE), 'extended': split(INSTRUMENTS_EXTENDED),
+         'simple_robust': split(INSTRUMENTS_SIMPLE_ROBUST)}
 ALL_INSTR = list(dict.fromkeys(sum(INSTR.values(), [])))
 for t in ALL_INSTR:
     cars[t] = parts.instruments_function(cars, t, SEGMENT, SUBGROUP)  # stored in cars so the formulas can use them
@@ -95,6 +96,7 @@ def fit_extended_logit(instruments):
 
 fit_simple = fit_simple_logit(INSTR['simple'])
 fit_extended = fit_extended_logit(INSTR['extended'])
+fit_simple_robust = fit_simple_logit(INSTR['simple_robust'])   # robustness: simple logit with all instruments
 
 alpha_simple = - fit_simple.params[PRICE]       # alpha > 0 means demand falls with price
 alpha_extended = - fit_extended.params[PRICE]
@@ -123,7 +125,6 @@ results = pd.concat(
 results.to_csv(DATA / 'demand_model_parameters.csv')
 
 # %% Diagnostics: first-stage F (robust F for one endogenous regressor, Sanderson-Windmeijer F for two; rule of thumb > 10)
-# and Hansen J p-value of the overidentifying restrictions (NaN if just identified).
 # Computed with the exogenous regressors (constant, controls, FE dummies) partialled out.
 
 W = np.column_stack([np.ones(len(data)), data[CTRL].values,
@@ -131,17 +132,18 @@ W = np.column_stack([np.ones(len(data)), data[CTRL].values,
 partial = lambda cols: data[cols].values - W @ np.linalg.lstsq(W, data[cols].values, rcond=None)[0]
 kw = np.linalg.matrix_rank(W)
 
-def iv_diagnostics(fit, endog, instruments):
-    y, X, Z = partial(['log_share_ratio'])[:, 0], partial(endog), partial(instruments)
-    return parts.first_stage_F(X, Z, kw), parts.overid_pval(y, X, Z, fit.resids.values)
+def iv_diagnostics(endog, instruments):
+    return parts.first_stage_F(partial(endog), partial(instruments), kw)
 
 ENDOG_SIMPLE, ENDOG_EXTENDED = [PRICE], [PRICE, 'log_within_segment_share']
-diag_simple = iv_diagnostics(fit_simple, ENDOG_SIMPLE, INSTR['simple'])
-diag_extended = iv_diagnostics(fit_extended, ENDOG_EXTENDED, INSTR['extended'])
+diag_simple = iv_diagnostics(ENDOG_SIMPLE, INSTR['simple'])
+diag_extended = iv_diagnostics(ENDOG_EXTENDED, INSTR['extended'])
+diag_simple_robust = iv_diagnostics(ENDOG_SIMPLE, INSTR['simple_robust'])
 
-print(f'\nSimple logit: first-stage F (price) = {diag_simple[0][0]:.1f}')
-print(f'Extended logit: Sanderson-Windmeijer F price = {diag_extended[0][0]:.1f}, '
-      f'within-segment share = {diag_extended[0][1]:.1f}; Hansen J p-value = {diag_extended[1]:.3f}')
+print(f'\nSimple logit: first-stage F (price) = {diag_simple[0]:.1f}')
+print(f'Extended logit: Sanderson-Windmeijer F price = {diag_extended[0]:.1f}, '
+      f'within-segment share = {diag_extended[1]:.1f}')
+print(f'Simple logit (robustness): first-stage F (price) = {diag_simple_robust[0]:.1f}')
 
 # %% LaTeX tables
 
@@ -150,7 +152,7 @@ LABELS = {PRICE: 'Log price', 'home': 'Domestic car', 'hpwt': 'Horsepower/weight
           'li': 'Fuel consumption', 'log_within_segment_share': r'$\rho$ (segment)'}
 FE_LABELS = {'ma_ye': 'Market-year FE', 'brd': 'Brand FE'}
 
-def write_table(file, caption, label, headers, fits, diags, rows, note):
+def write_table(file, caption, label, headers, fits, diags, rows, note, instr_keys):
     n = len(fits)
     tex =[r'\begin{table}[htbp]', r'\centering', rf'\caption{{{caption}}}', rf'\label{{{label}}}',
            rf'\begin{{tabular}}{{l{"c" * n}}}', r'\toprule', ' & ' + ' & '.join(headers) + r' \\', r'\midrule']
@@ -159,23 +161,27 @@ def write_table(file, caption, label, headers, fits, diags, rows, note):
         tex.append(' & ' + ' & '.join(f'({f.std_errors[k]:.3f})' if k in f.params else '' for f in fits) + r' \\')
     tex.append(r'\midrule')
     tex += [FE_LABELS.get(f, esc(f) + ' FE') + ' & ' + ' & '.join([r'$\checkmark$'] * n) + r' \\' for f in FE_COLS]
-    tex += ['First-stage F (price / within-segment share) & ' + ' & '.join(' / '.join(f'{x:.1f}' for x in F) for F, _ in diags) + r' \\',
-            'Hansen J p-value & ' + ' & '.join('--' if np.isnan(J) else f'{J:.3f}' for _, J in diags) + r' \\',
+    tex.append('All instruments & ' + ' & '.join(r'$\checkmark$' if set(INSTR[k]) == set(ALL_INSTR) else '' for k in instr_keys) + r' \\')
+    tex += ['First-stage F (price / within-segment share) & ' + ' & '.join(' / '.join(f'{x:.1f}' for x in F) for F in diags) + r' \\',
             'Observations & ' + ' & '.join(str(f.nobs) for f in fits) + r' \\',
             r'\bottomrule',
             rf'\multicolumn{{{n + 1}}}{{p{{0.9\linewidth}}}}{{\footnotesize \textit{{Note:}} {note}}} \\',
             r'\end{tabular}', r'\end{table}']
     (RES / file).write_text('\n'.join(tex) + '\n')
 
-list_instr = lambda key: ', '.join(esc(t) for t in INSTR[key])
+list_instr = lambda terms: ', '.join(esc(t) for t in terms)
 COMMON_NOTE = (rf'Robust standard errors in parentheses. Dependent variable is $\ln(s_j/s_0)$, market size = {esc(MARKET_SIZE)}. '
                rf'The extended logit is a nested logit with the segment ({SEGMENT}) as nest. '
-               'First-stage F: robust F for the simple logit, Sanderson--Windmeijer F for the extended logit. ')
+               'First-stage F: robust F for the simple logits, Sanderson--Windmeijer F for the extended logit. ')
 
 write_table('demand_models.tex', 'Demand estimates', 'tab:demand_models',
-            ['Simple logit', 'Extended logit (nested by segment)'], [fit_simple, fit_extended], [diag_simple, diag_extended],
+            ['Simple logit', 'Extended logit (nested by segment)', 'Simple logit (robustness)'],
+            [fit_simple, fit_extended, fit_simple_robust], [diag_simple, diag_extended, diag_simple_robust],
             [PRICE] + CTRL + ['log_within_segment_share'],
-            COMMON_NOTE + f'Instruments: simple logit {list_instr("simple")}; extended logit {list_instr("extended")}.')
+            COMMON_NOTE + f'All instruments: {list_instr(ALL_INSTR)}. '
+            f'Columns without a checkmark use only the price instrument, {list_instr(INSTR["simple"])}. '
+            'The robustness column re-estimates the simple logit with all instruments.',
+            ['simple', 'extended', 'simple_robust'])
 
 # %% Calculate own- and cross-price elasticity matrices for the simple and the extended logit
 # With r = 1/(1 - rho): E_jk = -alpha * dp * (r 1[j=k] - (r - 1) 1[same segment] s_k / s_segment,k - s_k); simple logit: rho = 0
@@ -229,7 +235,4 @@ for row, country in zip(axs, COUNTRIES):
         ax.set_title(f'{title}: {country}'); ax.set_xlabel('Good k (has price change)'); ax.set_ylabel('Good j (response)')
 fig.tight_layout()
 fig.savefig(RES / 'price_elasticities_top_models.pdf', bbox_inches='tight')
-
-# %% Calculate diversion ratios
-
 
