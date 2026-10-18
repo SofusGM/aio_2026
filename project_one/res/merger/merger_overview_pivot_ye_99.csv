@@ -1,0 +1,9 @@
+Measure,Average price change (%),Average price change (%),Average price change (%),Fiat average change (%),Fiat average change (%),Fiat average change (%),VW average change (%),VW average change (%),VW average change (%)
+Model,Simple logit,Extended nested logit,Simple logit (robustness),Simple logit,Extended nested logit,Simple logit (robustness),Simple logit,Extended nested logit,Simple logit (robustness)
+Market,,,,,,,,,
+All ma,0.13,0.06,0.05,1.02,0.43,0.36,0.31,0.17,0.11
+Belgium,0.04,0.02,0.02,1.93,0.72,0.67,0.07,0.03,0.02
+France,0.05,0.03,0.02,0.7,0.32,0.24,0.21,0.12,0.07
+Germany,0.05,0.02,0.02,1.42,0.61,0.5,0.09,0.06,0.03
+Italy,0.46,0.21,0.16,1.07,0.45,0.37,1.4,0.72,0.49
+UK,0.04,0.02,0.01,0.64,0.29,0.22,0.16,0.09,0.05
