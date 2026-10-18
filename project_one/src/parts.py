@@ -147,3 +147,144 @@ def overid_pval(y, X, Z, e):
     Si = np.linalg.inv((Z * e[:, None]).T @ (Z * e[:, None]))
     g = Z.T @ (y - X @ np.linalg.solve(X.T @ Z @ Si @ Z.T @ X, X.T @ Z @ Si @ Z.T @ y))
     return stats.chi2.sf(g @ Si @ g, Z.shape[1] - X.shape[1])
+
+
+
+# merger functions
+
+
+def shares_from_delta(delta, data, rho):
+    '''shares_from_delta(): nested-logit shares given MEAN UTILITIES.
+
+    The nest structure is two logits, one inside the other:
+
+        s_{j|h} = exp(delta_j/(1-rho)) / D_h,  D_h = sum_{k in B_h} exp(delta_k/(1-rho))
+        s_h     = IV_h / (1 + sum_g IV_g),     IV_h = D_h^(1-rho)
+        s_j     = s_{j|h} * s_h
+
+    The outside option sits alone in its own nest with delta_0 = 0, so it contributes
+    the 1 in the denominator of s_h.  Everything is done in logs and max-rescaled
+    within the nest, because delta/(1-rho) blows up as rho -> 1.
+
+    INPUTS:
+        delta: (T,J) mean utilities
+        data: (dict) must contain nest_id
+        rho: (float) in [0,1)
+    OUTPUT:
+        s: (T,J+1) shares, column 0 being the outside option
+    '''
+    T, J = delta.shape
+    nest_id = data['nest_id']
+    assert 0.0 <= rho < 1.0, f'rho must be in [0,1), got {rho}'
+
+    d = delta / (1.0 - rho)
+    nests = np.unique(nest_id)
+
+    # --- inner logit: share within the nest, and the nest's inclusive value ---
+    log_s_cond = np.zeros((T, J)) # log s_{j|h}
+    log_IV = np.zeros((T, nests.size)) # log IV_h = (1-rho) * logsumexp_h(delta/(1-rho))
+    for i_nest, h in enumerate(nests):
+        m = (nest_id == h) # (T,J) mask picking out this nest, market by market
+        d_max = np.where(m, d, -np.inf).max(axis=1, keepdims=True) # (T,1)
+        ex = np.where(m, np.exp(d - d_max), 0.0) # (T,J), zero outside the nest
+        lse = d_max + np.log(ex.sum(axis=1, keepdims=True)) # (T,1) log D_h
+        log_s_cond[m] = (d - lse)[m] # fill in this nest's products, leave the rest
+        log_IV[:, i_nest] = (1.0 - rho) * lse[:, 0]
+
+    # --- outer logit: share of the nest, the outside option entering as log IV = 0 ---
+    log_IV_full = np.column_stack([np.zeros(T), log_IV]) # (T, 1+H)
+    log_IV_full = log_IV_full - log_IV_full.max(axis=1, keepdims=True) # max rescale
+    e = np.exp(log_IV_full)
+    s_nest_full = e / e.sum(axis=1, keepdims=True) # (T, 1+H)
+
+    # --- put them together: s_j = s_{j|h} * s_{h_j} ---
+    nest_pos = np.searchsorted(nests, nest_id) # (T,J) which column of log_IV
+    s_nest_of_j = np.take_along_axis(s_nest_full[:, 1:], nest_pos, axis=1) # (T,J)
+
+    s = np.zeros((T, J + 1))
+    s[:, 0] = s_nest_full[:, 0] # outside option
+    s[:, 1:] = np.exp(log_s_cond) * s_nest_of_j
+
+    return s
+
+
+def within_nest_shares(S, nest_id):
+    '''within_nest_shares(): s_{j|h_j} from the (T,J+1) share matrix.
+    INPUTS:
+        S: (T,J+1) shares including the outside option in column 0
+        nest_id: (T,J)
+    OUTPUT:
+        s_cond: (T,J) share of j within its own nest
+    '''
+    s = S[:, 1:] # (T,J)
+    s_cond = np.zeros_like(s)
+    for h in np.unique(nest_id):
+        m = (nest_id == h)
+        nest_total = np.where(m, s, 0.0).sum(axis=1, keepdims=True) # (T,1)
+        s_cond[m] = (s / nest_total)[m]
+    return s_cond
+
+
+def invert_demand(S, rho, nest_id):
+    '''invert_demand(): the Berry (1994) nested-logit inversion, in closed form.
+
+        delta_jt = log S_jt - log S_0t - rho * log s_{j|h_j t}
+
+    This is D^{-1}(S; rho) -- the SAME object the BLP contraction computes, but here
+    there is no fixed point to solve: one line, given rho.  Note that theta_2 = rho
+    is all it needs; the linear parameters never enter.
+
+    INPUTS:
+        S: (T,J+1) observed shares, column 0 the outside option
+        rho: (float) trial value of the nesting parameter
+        nest_id: (T,J)
+    OUTPUT:
+        delta: (T,J)
+    '''
+    s_cond = within_nest_shares(S, nest_id)
+    return np.log(S[:, 1:]) - np.log(S[:, [0]]) - rho * np.log(s_cond)
+
+
+def zeta_logprice(p, Own, delta_obs, p_obs, nest_data, alpha, rho):
+    """Markups at candidate prices for the log-price demand model."""
+    nest_id = nest_data['nest_id'][0]
+    J = len(p)
+
+    # Shares implied by these candidate prices
+    delta = delta_obs - alpha * np.log(p / p_obs)
+    S = shares_from_delta(delta.reshape(1, -1), nest_data, rho)
+    s = S[0, 1:]
+
+    # Get each product's total share within its nest
+    s_cond = within_nest_shares(S, nest_data['nest_id'])[0]
+    segment_share = s / s_cond
+
+    # Elasticities: rows = responding shares; columns = prices changed
+    r = 1 / (1 - rho)
+    own = np.eye(J, dtype=bool)
+    same_nest = nest_id[:, None] == nest_id[None, :]
+
+    E = -alpha * (r * own - (r - 1) * same_nest * (s / segment_share)[None, :] - s[None, :])
+
+    # Jacobian: rows = prices changed; columns = shares responding
+    Jp = E.T * (s[None, :] / p[:, None])
+
+    # Solve the pricing first-order conditions for markups
+    return np.linalg.solve(Own * Jp, -s)
+
+def solve_nash(Own, mc, p_obs, delta_obs, nest_data, alpha, rho, maxit=1000, tol=1e-6, damping=0.5):
+
+    p = p_obs.copy()  # starting candidate prices
+
+    for it in range(maxit):
+        markup = zeta_logprice(p, Own, delta_obs, p_obs, nest_data, alpha, rho)
+        p_new = mc + markup
+
+        error = np.max(np.abs(p_new - p))
+        if error < tol:
+            return p_new
+
+        # Damping can help the fixed-point iteration converge
+        p = p + damping * (p_new - p)
+
+    raise RuntimeError("Nash price iteration did not converge.")

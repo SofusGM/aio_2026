@@ -104,6 +104,24 @@ for name, fit in [('Simple logit', fit_simple), ('Extended logit', fit_extended)
     print(f'\n{name}:')
     print(fit.params[[k for k in fit.params.index if not k.startswith('C(')]])
 
+
+# save regression results to CSV for use in merger
+def reported_params(fit, alpha):
+    # Match the parameters shown in your print statement
+    params = fit.params[[k for k in fit.params.index if not k.startswith('C(')]].copy()
+    params['alpha'] = alpha
+    return params
+
+results = pd.concat(
+    {
+        'Simple logit': reported_params(fit_simple, alpha_simple),
+        'Extended logit': reported_params(fit_extended, alpha_extended),
+    },
+    axis=1
+)
+
+results.to_csv(DATA / 'demand_model_parameters.csv')
+
 # %% Diagnostics: first-stage F (robust F for one endogenous regressor, Sanderson-Windmeijer F for two; rule of thumb > 10)
 # and Hansen J p-value of the overidentifying restrictions (NaN if just identified).
 # Computed with the exogenous regressors (constant, controls, FE dummies) partialled out.
