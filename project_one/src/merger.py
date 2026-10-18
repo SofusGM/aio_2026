@@ -191,34 +191,73 @@ ma_labels = cars.drop_duplicates('ma').set_index('ma')['market']
 
 merger_overview['market'] = merger_overview['market'].map(ma_labels).fillna(merger_overview['market'])
 
+# Shorter labels for the display
+pretty_table = merger_overview.rename(columns={
+    'market': 'Market',
+    'model': 'Model',
+    'average_pct_change_all_products': 'Average price\nchange (%)',
+    'largest_price_increase_euros': 'Largest increase\n(€)',
+    'pct_change_for_largest_increase': 'Largest increase\n(%)',
+    'product_with_largest_increase': 'Product with\nlargest increase',
+    'average_pct_change_fiat': 'Fiat average\nchange (%)',
+    'average_pct_change_vw': 'VW average\nchange (%)',
+}).copy()
 
-
-# Save LaTeX table
-merger_overview.to_latex(
-    RES / 'merger_overview.tex',
-    index=False,
-    float_format='%.2f',
-    escape=True,
-    caption='Merger price effects by market and demand model',
-    label='tab:merger_overview'
+pretty_table['Market'] = pretty_table['Market'].replace({'All ma': 'All markets'})
+pretty_table['Product with\nlargest increase'] = (
+    pretty_table['Product with\nlargest increase'].astype(str).str.title()
 )
 
-# Save the table as a PNG image
-fig_width = max(12, len(merger_overview.columns) * 1.5)
-fig_height = max(3, (len(merger_overview) + 1) * 0.45)
+# Format numeric cells consistently
+for col in pretty_table.columns:
+    if pd.api.types.is_numeric_dtype(pretty_table[col]):
+        pretty_table[col] = pretty_table[col].map(lambda x: f'{x:.2f}')
 
-fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+fig, ax = plt.subplots(figsize=(16, 5.5))
 ax.axis('off')
 
+col_widths = [0.09, 0.14, 0.14, 0.12, 0.11, 0.20, 0.10, 0.10]
+
 table = ax.table(
-    cellText=merger_overview.values,
-    colLabels=merger_overview.columns,
+    cellText=pretty_table.values,
+    colLabels=pretty_table.columns,
+    colWidths=col_widths,
     cellLoc='center',
-    loc='center'
+    bbox=[0, 0, 1, 0.92]
 )
+
 table.auto_set_font_size(False)
-table.set_fontsize(8)
-table.scale(1, 1.3)
+table.set_fontsize(9)
+table.scale(1, 1.35)
+
+# Style the header, rows, and borders
+for (row, col), cell in table.get_celld().items():
+    cell.set_edgecolor('#D5DDE5')
+    cell.set_linewidth(0.6)
+
+    if row == 0:
+        cell.set_facecolor('#243B53')
+        cell.set_text_props(color='white', weight='bold', va='center')
+    else:
+        cell.set_facecolor('#F1F5F9' if row % 2 == 0 else 'white')
+
+        if pretty_table.iloc[row - 1, 0] == 'All markets':
+            cell.set_facecolor('#DCE8F2')
+            cell.set_text_props(weight='bold')
+
+# Left-align text columns
+for row in range(1, len(pretty_table) + 1):
+    for col in [0, 1, 5]:
+        table[row, col].get_text().set_ha('left')
+        table[row, col].PAD = 0.08
+
+ax.set_title(
+    f'Merger price effects by market, year {MARKET_YE}',
+    fontsize=15,
+    weight='bold',
+    color='#243B53',
+    pad=14
+)
 
 fig.savefig(
     RES / 'merger_overview.png',
