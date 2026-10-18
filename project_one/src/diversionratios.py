@@ -5,7 +5,7 @@ import parts
 import matplotlib.pyplot as plt
 
 DATA = Path('project_one/data') 
-RES = Path('project_one/res/merger')
+RES = Path('project_one/res/diversionratios')
 RES.mkdir(parents=True, exist_ok=True)
 
 
@@ -46,40 +46,51 @@ def elasticity(pairs, alpha, rho):
 
 results_list = []
 
+# %% Diversion ratios between VW and Fiat in each market, year MARKET_YE
 
-#divesion ratioes between VW and Fiat in each market year_YE:
-
-#Setup
+# Setup
 firm_codes = {name: code for code, name in lbl_vals['firm'].items()}
 VW, FIAT = firm_codes['VW'], firm_codes['Fiat']
 MODELS = {'simple logit': (alpha_simple, 0), 'extended logit': (alpha_extended, rho_extended)}
 
-cols = ['ma', 'ye', 'co', 'frm', SEGMENT]
+cols = ['ma', 'ye', 'co', 'frm', 'type', SEGMENT]
 year = cars[cars['ye'] == MARKET_YE]
 
 # every pair (j, k) in the same market; s and segment_share belong to k, s_j to the responding car j
 pairs = year[cols + ['s']].rename(columns={'s': 's_j'}).merge(
     year[cols + ['s', 'segment_share', PRICE_VAR]], on=['ma', 'ye'], suffixes=('_j', '_k'))
 
-# define diversion
-def diversion(p, from_firm, to_firm):
-    price_up = p['frm_k'] == from_firm                  # the cars whose price rises
-    change = p['E'] * p['s_j']                          # change in s_j from a 1% rise in p_k
-    lost = -change[price_up & (p['frm_j'] == from_firm)].sum()
-    gained = change[price_up & (p['frm_j'] == to_firm)].sum()
-    return gained / lost
 
+# define diversion: the price of ONE car k (of from_firm) rises by 1%;
+# D_k = share of k's lost sales that go to to_firm's cars = -(sum_{j in to_firm} dS_j) / dS_k
+def product_diversion(p, from_firm, to_firm):
+    change = p['E'] * p['s_j']                                            # change in s_j from a 1% rise in p_k
+    own = change[p['co_j'] == p['co_k']].groupby(p['co_k']).sum()         # change in s_k itself (negative)
+    to_firm_cars = change[p['frm_j'] == to_firm].groupby(p['co_k']).sum()
+    cars_A = p[(p['frm_k'] == from_firm) & (p['co_j'] == p['co_k'])].set_index('co_k')
+    D = -to_firm_cars.reindex(cars_A.index, fill_value=0) / own[cars_A.index]
+    return pd.DataFrame({'type': cars_A['type_k'], 's': cars_A['s_j'], 'D': 100 * D})
+
+product_rows = []
 for model, (alpha, rho) in MODELS.items():
     pairs['E'] = elasticity(pairs, alpha, rho)
     for ma, p in pairs.groupby('ma'):
-        results_list.append({'market': lbl_vals['market'][ma], 'model': model,
-                             'VW to Fiat': 100 * diversion(p, VW, FIAT),
-                             'Fiat to VW': 100 * diversion(p, FIAT, VW)})
+        res = {}
+        for name, (A, B) in {'VW to Fiat': (VW, FIAT), 'Fiat to VW': (FIAT, VW)}.items():
+            d = product_diversion(p, A, B)
+            res[name] = np.average(d['D'], weights=d['s'])                # sales-weighted average over A's cars
+            product_rows.append(d.assign(market=lbl_vals['market'][ma], model=model, direction=name))
+        results_list.append({'market': lbl_vals['market'][ma], 'model': model, **res})
 
+# every car's own diversion to the other firm (for an appendix or for discussing single models)
+products = pd.concat(product_rows)
+products.to_csv(RES / 'diversion_by_car.csv', index=False)
 
+# per-market summary table
 diversion_table = pd.DataFrame(results_list).pivot(index='market', columns='model', values=['VW to Fiat', 'Fiat to VW'])
 diversion_table = diversion_table.swaplevel(axis=1)[list(MODELS)]   # columns: model -> direction
 print(diversion_table.round(2))
+
 
 # %% LaTeX table
 lines = [r'\begin{table}[htbp]', r'\centering', r'\small',
@@ -91,10 +102,7 @@ lines = [r'\begin{table}[htbp]', r'\centering', r'\small',
 for market, row in diversion_table.iterrows():
     lines.append(market + ' & ' + ' & '.join(f'{v:.2f}' for v in row.values) + r' \\')
 lines += [r'\bottomrule',
-          r'\multicolumn{5}{p{0.85\linewidth}}{\footnotesize \textit{Note:} Share of the sales the first firm loses '
-          r'that go to the second firm when it raises the price of all its cars by 1\%.} \\',
+          r'\multicolumn{5}{p{0.85\linewidth}}{\footnotesize \textit{Note:} Share of a car\textquoteright s lost sales that go to the other firm when its own price rises by 1\%, '
+          r'averaged over the cars of the first firm with sales weights.} \\',
           r'\end{tabular}', r'\end{table}']
 (RES / 'diversion_ratios.tex').write_text('\n'.join(lines) + '\n')
-
-
-
