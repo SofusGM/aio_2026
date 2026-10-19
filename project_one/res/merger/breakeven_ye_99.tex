@@ -1,0 +1,35 @@
+\begin{table}[!htbp]
+\centering
+\caption{Break-even efficiencies by market, year 1999}
+\label{tab:merger_breakeven}
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{0.95}
+
+\begin{tabular}{l*{6}{r}}
+\toprule
+& \multicolumn{2}{c}{(1) Simple logit} & \multicolumn{2}{c}{\shortstack{(2) Extended logit\\(nested by segment)}} & \multicolumn{2}{c}{\shortstack{(3) Simple\\(robustness)}} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+Market & \shortstack{$\kappa^*$\\(\%)} & \shortstack{Savings\\(mill.\ EUR)} & \shortstack{$\kappa^*$\\(\%)} & \shortstack{Savings\\(mill.\ EUR)} & \shortstack{$\kappa^*$\\(\%)} & \shortstack{Savings\\(mill.\ EUR)} \\
+\midrule
+All markets & 0.57 & 106.2 & 0.26 & 73.5 & 0.20 & 52.4 \\
+Belgium     & 0.33 & 2.3 & 0.18 & 1.9 & 0.11 & 1.1 \\
+France      & 0.41 & 7.7 & 0.18 & 5.4 & 0.14 & 3.8 \\
+Germany     & 0.17 & 14.5 & 0.07 & 9.0 & 0.06 & 7.2 \\
+Italy       & 1.45 & 77.0 & 0.65 & 54.0 & 0.50 & 37.9 \\
+UK          & 0.28 & 6.0 & 0.13 & 4.4 & 0.10 & 3.0 \\
+\bottomrule
+\end{tabular}
+
+\vspace{3pt}
+\begin{minipage}{0.9\textwidth}
+\footnotesize
+\emph{Notes:} $\kappa^*$ is the proportional cut in the marginal costs of all VW-group and
+Fiat-group products, $c' = c(1-\kappa)$, at which the merger leaves consumer surplus
+unchanged ($\Delta CS = 0$), with post-merger prices re-solved at the lower costs. Savings are
+$\kappa^*$ times the merging products' marginal costs times pre-merger quantities, per year, converted
+from SDR to EUR at 1 SDR = 1.2956 EUR. The all-markets row uses one common $\kappa^*$ that sets the
+sum of $\Delta CS$ over the five markets to zero. Column (3) re-estimates the simple logit with all
+instruments.
+\end{minipage}
+\end{table}

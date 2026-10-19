@@ -1,19 +1,19 @@
-market,model,average_pct_change_all_products,largest_price_increase_euros,pct_change_for_largest_increase,product_with_largest_increase,average_pct_change_fiat,average_pct_change_vw
-Belgium,Simple logit,0.04,114.88,1.93,fiat punto,1.93,0.07
-Belgium,Extended nested logit,0.02,42.63,0.72,fiat punto,0.72,0.03
-Belgium,Simple logit (robustness),0.02,40.05,0.67,fiat punto,0.67,0.02
-France,Simple logit,0.05,47.69,0.6,fiat palio,0.7,0.21
-France,Extended nested logit,0.03,37.35,0.39,fiat bravo/brava,0.32,0.12
-France,Simple logit (robustness),0.02,16.62,0.27,fiat punto,0.24,0.07
-Germany,Simple logit,0.05,154.27,1.42,fiat punto,1.42,0.09
-Germany,Extended nested logit,0.02,65.99,0.61,fiat punto,0.61,0.06
-Germany,Simple logit (robustness),0.02,53.78,0.5,fiat punto,0.5,0.03
-Italy,Simple logit,0.46,137.14,0.96,volkswagen passat,1.07,1.4
-Italy,Extended nested logit,0.21,103.77,0.73,volkswagen passat,0.45,0.72
-Italy,Simple logit (robustness),0.16,47.8,0.33,volkswagen passat,0.37,0.49
-UK,Simple logit,0.04,64.76,0.5,fiat bravo/brava,0.64,0.16
-UK,Extended nested logit,0.02,40.8,0.32,fiat bravo/brava,0.29,0.09
-UK,Simple logit (robustness),0.01,22.57,0.17,fiat bravo/brava,0.22,0.05
-All ma,Simple logit,0.13,154.27,1.42,fiat punto,1.02,0.31
-All ma,Extended nested logit,0.06,103.77,0.73,volkswagen passat,0.43,0.17
-All ma,Simple logit (robustness),0.05,53.78,0.5,fiat punto,0.36,0.11
+market,model,avg_pct_change_all,avg_pct_change_vw_group,avg_pct_change_fiat_group,largest_increase_eur,largest_increase_pct,product_largest_increase
+Belgium,Simple logit,0.104,0.174,2.217,225.882,2.926,Fiat Punto
+Belgium,Extended nested logit,0.049,0.075,1.045,182.622,1.054,Alfa 156
+Belgium,Simple logit (robustness),0.036,0.061,0.773,78.744,1.02,Fiat Punto
+France,Simple logit,0.081,0.248,0.971,90.142,1.131,Fiat Punto
+France,Extended nested logit,0.038,0.124,0.412,70.955,0.566,Fiat Bravo/Brava
+France,Simple logit (robustness),0.028,0.086,0.339,31.424,0.251,Fiat Bravo/Brava
+Germany,Simple logit,0.068,0.088,2.337,328.318,2.337,Fiat Punto
+Germany,Extended nested logit,0.031,0.049,0.839,117.835,0.839,Fiat Punto
+Germany,Simple logit (robustness),0.024,0.031,0.815,114.455,0.815,Fiat Punto
+Italy,Simple logit,0.778,2.005,1.347,260.95,1.407,Volkswagen Passat
+Italy,Extended nested logit,0.329,0.917,0.542,157.089,0.847,Volkswagen Passat
+Italy,Simple logit (robustness),0.271,0.699,0.469,90.959,0.635,Volkswagen Golf
+UK,Simple logit,0.046,0.159,0.807,106.61,0.885,Fiat Punto
+UK,Extended nested logit,0.023,0.091,0.351,57.562,0.343,Fiat Bravo/Brava
+UK,Simple logit (robustness),0.016,0.055,0.281,37.165,0.309,Fiat Punto
+All markets,Simple logit,0.216,0.384,1.33,328.318,2.337,Fiat Punto
+All markets,Extended nested logit,0.094,0.183,0.536,182.622,1.054,Alfa 156
+All markets,Simple logit (robustness),0.075,0.134,0.464,114.455,0.815,Fiat Punto
