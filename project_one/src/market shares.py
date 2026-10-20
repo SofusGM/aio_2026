@@ -1,14 +1,11 @@
-"""Market structure table: VW-group and Fiat-group shares of car sales, and the outside share,
-averaged over all years (1970-1999). Firm groups follow frm in each year, so ownership changes
-over time are respected (e.g. Seat joins the VW group in 1986, Alfa Romeo the Fiat group in 1987).
-Writes res/merger/market_structure.tex."""
+"""Market structure table: VW- and Fiat-group sales shares and the outside share, 1970-1999 average."""
 
 import pandas as pd
 from pathlib import Path
 import parts
 
-DATA = Path('../data')
-RES = Path('../res/market size')
+DATA = parts.DATA
+RES = parts.RES / 'market size'
 RES.mkdir(parents=True, exist_ok=True)
 
 MARKET_SIZE = 'hh'                 # same market size as in the demand estimation

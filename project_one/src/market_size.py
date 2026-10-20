@@ -8,12 +8,13 @@ import numpy as np
 import pandas as pd
 import statsmodels.api as sm
 import seaborn as sns
+import parts
 sns.set_theme(style='whitegrid', context='notebook')
 
 
 
-DATA = Path('../data') # notebooks run from their own folder (src/)
-RES = Path('../res/market size') # notebooks run from their own folder (src/)
+DATA = parts.DATA
+RES = parts.RES / 'market size'
 RES.mkdir(parents=True, exist_ok=True)
 
 
@@ -52,7 +53,7 @@ fig.savefig(RES / "population_by_market.png", dpi=200, bbox_inches="tight")
 household = pd.read_csv(DATA / 'household_census.csv', na_values=[".."])
 household = household.dropna(subset=["ma", "ye", "households"])
 
-# make linear regression over census point to interpolate and extrapolate household size year
+# linear trend through the census points (Germany split at reunification)
 models = {}
 predictions = []
 
@@ -119,7 +120,6 @@ ax.yaxis.set_major_formatter(FuncFormatter(lambda x, _: f"{x / 1_000_000:g}"))
 ax.legend(title="Country", frameon=False)
 fig.tight_layout()
 
-# Save to project_one/res/market size, based on this script's location
 fig.savefig(RES / "household_regressions.png", dpi=200, bbox_inches="tight")
 
 plt.show()
@@ -164,7 +164,6 @@ for ax, market in zip(axes, markets):
         car_pop["year"],
         car_pop["pop"] / 1_000_000,
         color="tab:blue",
-        #marker="o",
         label="Population"
     )
 

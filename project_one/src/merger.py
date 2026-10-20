@@ -1,24 +1,4 @@
-"""
-Cars: Merger simulation (VW group x Fiat group)
-
-For each market (country) in year MARKET_YE and each demand model:
-  1. recover marginal costs from the observed prices (multiproduct Bertrand-Nash FOCs),
-  2. solve for post-merger prices with the merged ownership matrix,
-  3. compute the change in consumer surplus (in money) and the change in HHI,
-  4. find the break-even efficiency: the cut kappa in the merging firms' marginal costs,
-     c' = c (1 - kappa), at which consumers are exactly as well off as before (dCS = 0)
-     (course note, Section 3.3; slides: "report the kappa at which consumers break even").
-
-Ownership is by firm (frm), not brand: frm 26 = VW group (VW, Audi, Seat, Skoda),
-frm 4 = Fiat group (Fiat, Lancia, Alfa Romeo, ...). The data's frm codes follow ownership over time.
-
-Consumer surplus. With log price, the log-sum change divided by alpha is in log-price units, not money
-(course note, Section 3.5), because the marginal utility of money, alpha/p_j, differs across cars.
-We therefore use the first-order (Roy's identity) money measure, per potential consumer (household):
-    dCS ~= - sum_j  0.5 * (s_j,pre + s_j,post) * (p_j,post - p_j,pre)
-This is the money version of the log-sum change: d logsum = sum_j s_j d delta_j = -alpha sum_j s_j d ln p_j.
-It is accurate for small price changes; the log-sum is kept as a cross-check (dW/alpha ~= -sum_j s_j d ln p_j).
-"""
+"""VW-Fiat merger simulation: post-merger prices, consumer surplus, HHI and break-even cost cuts."""
 
 import numpy as np
 import pandas as pd
@@ -28,8 +8,8 @@ from scipy.special import logsumexp
 from scipy.optimize import brentq
 import parts
 
-DATA = Path('../data')
-RES = Path('../res/merger')
+DATA = parts.DATA
+RES = parts.RES / 'merger'
 RES.mkdir(parents=True, exist_ok=True)
 
 # Must be the same as in demand_models.py (the parameters were estimated with it)
@@ -183,8 +163,7 @@ for ma in sorted(cars.loc[cars['ye'].eq(MARKET_YE), 'ma'].unique()):
             'median_lerner_pct': 100 * np.median(markup / prices),
         })
 
-        # Break-even efficiency: cut the merging firms' marginal costs by kappa, re-solve the
-        # post-merger equilibrium and find the kappa at which dCS = 0 (consumers break even).
+        # Break-even: cost cut kappa for the merging firms at which dCS = 0
         def dCS_at(kappa, mc=mc, delta_obs=delta_obs, alpha=alpha, rho=rho,
                    s_pre=s_pre, p_pre=p_pre, merging=merging, H_merge=H_merge, nest_data=nest_data,
                    prices=prices):
@@ -202,9 +181,8 @@ for ma in sorted(cars.loc[cars['ye'].eq(MARKET_YE), 'ma'].unique()):
         breakeven_rows.append({
             'market': label, 'model': model,
             'kappa_pct': 100 * kappa_star,
-            # annual cost savings implied by kappa*: kappa* x marginal cost x quantity, merging products
+            # annual savings: kappa* x mc x quantity
             'savings_mill_eur': kappa_star * np.sum(mc[merging] * q_merging) * SDR_TO_EUR / 1e6,
-            # price change of the merging products at kappa* (share-weighted), for comparison
             'dp_merging_at_kappa_pct': 100 * np.average(p_star[merging] / p_pre[merging] - 1,
                                                        weights=s_pre[merging]),
             'mc_merging_mill_eur': np.sum(mc[merging] * q_merging) * SDR_TO_EUR / 1e6,

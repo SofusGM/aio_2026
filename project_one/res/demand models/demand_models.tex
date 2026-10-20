@@ -2,29 +2,29 @@
 \centering
 \caption{Demand estimates}
 \label{tab:demand_models}
-\begin{tabular}{lcc}
+\begin{tabular}{lccc}
 \toprule
- & Simple logit & Extended logit (nested by segment) \\
+ & Simple logit & Extended logit (nested by segment) & Simple logit (robustness) \\
 \midrule
-Log price & -2.230 & -5.940 \\
- & (1.721) & (0.933) \\
-Domestic car & 1.245 & 1.178 \\
- & (0.028) & (0.053) \\
-Horsepower/weight & 0.035 & 0.320 \\
- & (0.130) & (0.075) \\
-Size (m$^2$) & 0.390 & 1.132 \\
- & (0.356) & (0.186) \\
-Fuel consumption & -0.004 & 0.081 \\
- & (0.042) & (0.025) \\
-$\rho$ (segment) &  & 0.093 \\
- &  & (0.045) \\
+Log price & -2.230 & -5.940 & -4.529 \\
+ & (1.721) & (0.933) & (0.588) \\
+Domestic car & 1.245 & 1.178 & 1.265 \\
+ & (0.028) & (0.053) & (0.027) \\
+Horsepower/weight & 0.035 & 0.320 & 0.207 \\
+ & (0.130) & (0.075) & (0.047) \\
+Size (m$^2$) & 0.390 & 1.132 & 0.865 \\
+ & (0.356) & (0.186) & (0.124) \\
+Fuel consumption & -0.004 & 0.081 & 0.050 \\
+ & (0.042) & (0.025) & (0.018) \\
+$\rho$ (segment) &  & 0.093 &  \\
+ &  & (0.045) &  \\
 \midrule
-Market-year FE & $\checkmark$ & $\checkmark$ \\
-Brand FE & $\checkmark$ & $\checkmark$ \\
-First-stage F (price / within-segment share) & 16.3 & 22.8 / 38.2 \\
-Hansen J p-value & -- & 0.055 \\
-Observations & 6000 & 6000 \\
+Market-year FE & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+Brand FE & $\checkmark$ & $\checkmark$ & $\checkmark$ \\
+All instruments &  & $\checkmark$ & $\checkmark$ \\
+First-stage F (price / within-segment share) & 16.3 & 22.8 / 38.2 & 32.9 \\
+Observations & 6000 & 6000 & 6000 \\
 \bottomrule
-\multicolumn{3}{p{0.9\linewidth}}{\footnotesize \textit{Note:} Robust standard errors in parentheses. Dependent variable is $\ln(s_j/s_0)$, market size = hh. The extended logit is a nested logit with the segment (cla) as nest. First-stage F: robust F for the simple logit, Sanderson--Windmeijer F for the extended logit. Instruments: simple logit log\_exchange\_rate; extended logit log\_exchange\_rate, log\_count\_segment, distance\_segment\_hpwt, distance\_segment\_size.} \\
+\multicolumn{4}{p{0.9\linewidth}}{\footnotesize \textit{Note:} Robust standard errors in parentheses. Dependent variable is $\ln(s_j/s_0)$, market size = hh. The extended logit is a nested logit with the segment (cla) as nest. First-stage F: robust F for the simple logits, Sanderson--Windmeijer F for the extended logit. All instruments: log\_exchange\_rate, log\_count\_segment, distance\_segment\_hpwt, distance\_segment\_size. Columns without a checkmark use only the price instrument, log\_exchange\_rate. The robustness column re-estimates the simple logit with all instruments.} \\
 \end{tabular}
 \end{table}

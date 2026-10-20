@@ -4,8 +4,8 @@ from pathlib import Path
 import parts
 import matplotlib.pyplot as plt
 
-DATA = Path('project_one/data') 
-RES = Path('project_one/res/diversionratios')
+DATA = parts.DATA
+RES = parts.RES / 'diversionratios'
 RES.mkdir(parents=True, exist_ok=True)
 
 
@@ -35,7 +35,7 @@ alpha_extended = params.loc['alpha', 'Extended logit']
 rho_extended = params.loc['log_within_segment_share', 'Extended logit']
 
 
-#define elasticityies from param values
+# elasticities, as in demand_models.py
 def elasticity(pairs, alpha, rho):
     r = 1 / (1 - rho)
     own = pairs['co_j'] == pairs['co_k']
@@ -82,7 +82,7 @@ for model, (alpha, rho) in MODELS.items():
             product_rows.append(d.assign(market=lbl_vals['market'][ma], model=model, direction=name))
         results_list.append({'market': lbl_vals['market'][ma], 'model': model, **res})
 
-# every car's own diversion to the other firm (for an appendix or for discussing single models)
+# diversion per car
 products = pd.concat(product_rows)
 products.to_csv(RES / 'diversion_by_car.csv', index=False)
 
