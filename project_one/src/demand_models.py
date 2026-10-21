@@ -217,7 +217,7 @@ bounds = np.flatnonzero(np.diff(seg)) + 1
 starts, ends = np.r_[0, bounds], np.r_[bounds, len(seg)]
 
 fig, axs = plt.subplots(1, 2, figsize=(18, 8))
-for ax, (model, title) in zip(axs, MODELS.items()):
+for ax, panel, (model, title) in zip(axs, 'AB', MODELS.items()):
     elast = (p.pivot_table(index='co_j', columns='co_k', values=model, aggfunc='mean')
              .reindex(index=top.index, columns=top.index))
     elast.index, elast.columns = top['type'], top['type']
@@ -229,7 +229,7 @@ for ax, (model, title) in zip(axs, MODELS.items()):
     sec = ax.secondary_xaxis('top')
     sec.set_xticks((starts + ends) / 2, [seg_name[seg[s]] for s in starts])
     sec.tick_params(length=0)
-    ax.set_title(title, pad=25); ax.set_xlabel(r'Car model $k$ (price change)'); ax.set_ylabel(r'Car model $j$ (response)')
+    ax.set_title(f'Panel {panel}: {title}', pad=25); ax.set_xlabel(r'Car model $k$ (price change)'); ax.set_ylabel(r'Car model $j$ (response)')
 fig.tight_layout()
 fig.savefig(RES / 'price_elasticities_top_models.pdf', bbox_inches='tight')
 
