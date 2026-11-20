@@ -1,0 +1,15 @@
+\begin{table}[htbp]
+\centering
+\caption{Expedia, random and best-first rankings}
+\label{tab:ranking}
+\begin{tabular}{lccc}
+\toprule
+Ranking & Share booked & CS gain vs Expedia & Searches per session \\
+\midrule
+Expedia & 0.152 & 0.000 & 0.802 \\
+Random & 0.153 & 0.002 & 0.839 \\
+Best first & 0.177 & 0.031 & 0.856 \\
+\bottomrule
+\multicolumn{4}{p{0.9\linewidth}}{\footnotesize \textit{Note:} 54177 Expedia (default-ranking) sessions, sessions with a missing review score dropped. Every hotel keeps its attributes and its observed price; only its position changes. Expedia: the positions Expedia showed. Random: the hotels of each session in a random order. Best first: sorted by $\mathbf{x}_{ij}'\hat\theta$ without the position term. The share booked and the consumer surplus gain (the mean change in the logsum, in utility units) follow from the logit in $\mathbf{x}_{ij}'\hat\theta$. Searches are simulated at $(\hat\beta, \hat\gamma)$, with the same draws for all three rankings.} \\
+\end{tabular}
+\end{table}
