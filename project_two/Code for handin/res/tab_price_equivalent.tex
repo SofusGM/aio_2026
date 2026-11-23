@@ -1,0 +1,22 @@
+\begin{table}[htbp]
+\centering
+\caption{Price equivalent of moving one position up}
+\label{tab:price_equivalent}
+\begin{tabular}{lccc}
+\toprule
+ & (1) Purchases only & \multicolumn{2}{c}{(2) Purchases and clicks} \\
+\cmidrule(lr){3-4}
+Move & Total & Taste & Search cost \\
+\midrule
+2 $\to$ 1 & 106.46 & 26.83 & 65.90 \\
+3 $\to$ 2 & 54.41 & 15.07 & 35.22 \\
+4 $\to$ 3 & 36.59 & 10.52 & 24.09 \\
+5 $\to$ 4 & 27.56 & 8.09 & 18.32 \\
+10 $\to$ 9 & 12.35 & 3.76 & 8.35 \\
+15 $\to$ 14 & 7.96 & 2.45 & 5.41 \\
+20 $\to$ 19 & 5.87 & 1.82 & 4.00 \\
+25 $\to$ 24 & 4.65 & 1.44 & 3.17 \\
+\bottomrule
+\multicolumn{4}{p{0.9\linewidth}}{\footnotesize \textit{Note:} The price increase in US dollars that keeps the booking probability constant when a hotel moves one position up, $\Delta p = \tilde p\,(e^{\Delta \log p} - 1)$ with $\Delta \log p = -\frac{\hat\theta_{pos}}{\hat\theta_{price}}\left[\log(r-1) - \log r\right]$, evaluated at the median price, $\tilde p = 129$ USD. Column (1) uses $\hat\theta$ from the logit on bookings. Column (2) splits it into the taste part, $\hat\beta_{pos}$, and the search cost part, $-\hat\gamma_{pos}$. The two parts add up to column (1) in log price, not exactly in dollars.} \\
+\end{tabular}
+\end{table}

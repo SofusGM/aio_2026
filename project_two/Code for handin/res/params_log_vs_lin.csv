@@ -1,0 +1,13 @@
+,Log position,Log position,Log position,Linear position,Linear position,Linear position
+,theta,gamma,beta,theta,gamma,beta
+log_price,-0.7544,0.0,-0.7544,-0.7624,0.0,-0.7624
+stars,0.2328,0.0,0.2328,0.2366,0.0,0.2366
+zero_stars,0.2595,0.0,0.2595,0.2657,0.0,0.2657
+position_log,-0.6561,0.45,-0.2061,,,
+review,0.2339,0.0,0.2339,0.2303,0.0,0.2303
+zero_review,-0.0903,0.0,-0.0903,-0.1097,0.0,-0.1097
+prop_brand_bool,0.4284,0.0,0.4284,0.4322,0.0,0.4322
+prop_location_score1,-0.0295,0.0,-0.0295,-0.0314,0.0,-0.0314
+promotion_flag,0.225,0.0,0.225,0.2329,0.0,0.2329
+constant,-1.8726,2.5,0.6274,-2.2465,2.75,0.5035
+position_num,,,,-0.0779,0.0585,-0.0194

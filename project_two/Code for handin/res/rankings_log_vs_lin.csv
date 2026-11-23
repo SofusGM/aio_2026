@@ -1,0 +1,9 @@
+,,Among searchers,Among searchers,Among searchers,Among searchers,"Model prediction, not in data"
+,,Booking rate,Consumer surplus vs Expedia,Mean price of booked hotel ($),Clicks per searcher,Share who click nothing
+Model,Ranking,,,,,
+Log position,Expedia,0.1517,0.0,131.0524,1.4457,0.4456
+Log position,Random,0.1459,-0.007,130.1789,1.446,0.4472
+Log position,Best first,0.1704,0.0228,118.2599,1.4524,0.4376
+Linear position,Expedia,0.1509,0.0,131.0676,1.4239,0.4532
+Linear position,Random,0.1455,-0.0064,129.9421,1.4287,0.4551
+Linear position,Best first,0.1687,0.0218,119.3099,1.4365,0.4472

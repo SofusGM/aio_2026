@@ -1,0 +1,27 @@
+\begin{table}[htbp]
+\centering
+\caption{Counterfactual rankings}
+\label{tab:rankings}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lccccc}
+\toprule
+ & \multicolumn{4}{c}{Among searchers} & \\
+\cmidrule(lr){2-5}
+ & Booking & CS vs & Price & Clicks per & Share \\
+Ranking & rate & Expedia & booked (\$) & searcher & no click$^{\dagger}$ \\
+\midrule
+\multicolumn{6}{l}{\textit{Panel A: estimated price coefficient ($\alpha = 0.75$)}} \\
+Expedia & 0.152 & 0.000 & 131.1 & 1.45 & 0.446 \\
+Random & 0.146 & -0.007 & 130.2 & 1.45 & 0.447 \\
+Best first & 0.170 & 0.023 & 118.3 & 1.45 & 0.438 \\
+\midrule
+\multicolumn{6}{l}{\textit{Panel B: sensitivity, $\alpha = 2$}} \\
+Expedia & 0.152 & 0.000 & 93.4 & 1.45 & 0.443 \\
+Random & 0.148 & -0.005 & 92.0 & 1.45 & 0.444 \\
+Best first & 0.198 & 0.063 & 77.1 & 1.46 & 0.424 \\
+\bottomrule
+\end{tabular}
+
+\begin{minipage}{0.85\linewidth}\vspace{4pt}\footnotesize \textit{Note:} 54,177 Expedia (default-ranking) sessions; sessions with a missing review score dropped. Every hotel keeps its attributes and observed price; only its position changes, within the session's own slots (opaque-offer slots kept). Expedia: the positions shown. Random: hotels in random order. Best first: sorted by $\mathbf{x}_{ij}'\hat\theta$ without the position term. Booking rate, consumer surplus (mean change in the logsum, in utility units) and the booking-weighted mean price follow from the logit in $\mathbf{x}_{ij}'\hat\theta$, and refer to consumers who search. Clicks are simulated at $(\hat\beta, \hat\gamma)$ with the same draws for all rankings. Panel B sets $\alpha = 2$, keeps all other coefficients, and sets the constant so the predicted booking rate in the estimation sample equals the observed one; its best-first ranking is built with $\alpha = 2$. Consumer surplus is in utility units within each panel. $^{\dagger}$Share of simulated consumers who click nothing: a model prediction for a margin not observed in the data, which contain only sessions with at least one click.\end{minipage}
+\end{table}

@@ -24,6 +24,6 @@ Sessions & 23405 & \multicolumn{2}{c}{23405} \\
 Hotel listings & 565341 & \multicolumn{2}{c}{565341} \\
 Simulation draws $R$ & & \multicolumn{2}{c}{50} \\
 \bottomrule
-\multicolumn{4}{p{0.9\linewidth}}{\footnotesize \textit{Note:} Random-ranking sessions only, sessions with a missing review score dropped. Column (1) is a multinomial logit on bookings, which identifies only $\theta = \beta - \gamma$. Column (2) splits $\theta$ with two-step simulated least squares on the clicks: $\gamma$ is chosen on a grid to match the click rates, and $\beta = \hat\theta + \hat\gamma$. The simulated click rates are conditioned on at least one search per session, as in the data. The search cost loads on the constant and log position only, so the attributes have the same coefficient in $\theta$ and $\beta$.} \\
+\multicolumn{4}{p{0.9\linewidth}}{\footnotesize \textit{Note:} Random-ranking sessions only. Column (1) is a logit on bookings, identifying $\theta = \beta - \gamma$. Column (2) splits $\theta$ by simulated least squares on clicks, with search costs on the constant and log position only.} \\
 \end{tabular}
 \end{table}
